@@ -179,7 +179,7 @@ export default function LoginModule({ status }) {
                                         
                                         <div className="d-flex justify-content-between align-items-center mb-3">
                                             <span className="badge bg-info text-dark px-3 py-2 rounded-pill fw-bold">v 1.0.1</span>
-                                            <small className="text-light"><i className="far fa-calendar-alt me-1"></i> Released: 6 Jun 2026</small>
+                                            <small className="text-light"><i className="far fa-calendar-alt me-1"></i> Released: 6 Jun 2026 | Last Update: 11 Jul 2026</small>
                                         </div>
 
                                         <p className="text-light mb-4 small">

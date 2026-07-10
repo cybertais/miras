@@ -7,7 +7,7 @@ export default function Footer() {
                 © 2026 Copyright: <span className="text-warning fw-bold">DDA School Fee Subsidiary Management System</span>
             </div>
             <div className="py-1 px-2" style={{ backgroundColor: '#111' }}>
-                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Version: 1.0.1 | Stage Version: 3.1.12 | Stage Update Date 25 March 2026</span>
+                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Version: 1.0.1 | Stage Version: 3.1.20 | Stage Update Date 7 July 2026</span>
             </div>
             <div className="py-1 px-2" style={{ backgroundColor: '#1a1a1a' }}>
                 <span className="text-muted" style={{ fontSize: '0.7rem' }}>Cybertais IT Consultant</span>
