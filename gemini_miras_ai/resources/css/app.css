@@ -1,0 +1,138 @@
+/* resources/css/app.css */
+
+:root {
+    --primary-color: #8b0000;
+    --secondary-color: #ffc107;
+}
+
+/* 1. Global Typography & Sleek Base */
+body {
+    font-size: 0.85rem !important; /* Reduces base font size for a modern desktop feel */
+    background-color: #f4f5f7;
+}
+
+/* 2. Compact, Modern Tables */
+.table > :not(caption) > * > * {
+    padding: 0.4rem 0.5rem !important; /* Slimmer rows */
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Hide scrollbar for horizontal scrolling containers but keep functionality */
+.scroll-hide-x {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    padding-bottom: 0.5rem; /* Prevents shadow clipping */
+}
+.scroll-hide-x::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+}
+
+.bg-deepbrown{
+     background-color: var(--primary-color) !important;
+     color: #ffffff !important;
+}
+
+/* Modern Pill Tabs */
+.settings-tab {
+    border-radius: 50px !important; /* Fully rounded pill */
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+/* GLOBAL ACTIVE TAB COLOR */
+.settings-tab.active {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(139, 0, 0, 0.2) !important;
+}
+
+.settings-tab:hover:not(.active) {
+    background-color: #e9ecef !important;
+    border-color: #dee2e6;
+    transform: translateY(-1px);
+}
+
+.table thead th {
+    font-size: 0.75rem !important; /* Smaller, cleaner headers */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid var(--secondary-color) !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+}
+
+/* 3. Sleeker Cards */
+.card {
+    border: none !important;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+}
+
+.card-body {
+    padding: 1.25rem !important; /* Reduces bulky white space inside cards */
+}
+
+/* 4. Thinner Buttons & Inputs */
+.btn {
+    padding: 0.4rem 1rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.form-control, .form-select {
+    font-size: 0.85rem !important;
+    padding: 0.35rem 0.75rem !important;
+    min-height: 32px;
+    border-radius: 4px;
+}
+
+/* DataTables / Pagination overrides */
+.pagination .page-link {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+
+/* Smooth Entrance Animation */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.3s ease-out forwards;
+}
+
+/* Hover Lift Effect for Cards & Buttons */
+.hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.08) !important;
+}
+
+/* Micro-Table Styling */
+.table-micro th, .table-micro td {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+/* Icon Box for sleek modern headers */
+.icon-box {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
