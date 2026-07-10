@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { MDBBtn, MDBIcon, MDBCheckbox } from 'mdb-react-ui-kit';
+import { 
+    MDBBtn, 
+    MDBIcon, 
+    MDBCheckbox,
+    MDBModal,
+    MDBModalDialog,
+    MDBModalContent,
+    MDBModalHeader,
+    MDBModalTitle,
+    MDBModalBody,
+    MDBModalFooter
+} from 'mdb-react-ui-kit';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../Layouts/DashboardLayout.jsx';
@@ -18,7 +29,15 @@ export default function RegisterStudentModule() {
     const [llgsList, setLlgsList] = useState([]);
     const [wardsList, setWardsList] = useState([]);
 
-    const [errors, setErrors] = useState({}); // <-- Add this state
+    const [errors, setErrors] = useState({});
+
+    // --- NEW MODAL NOTIFICATION STATES ---
+    const [modalState, setModalState] = useState({
+        isOpen: false,
+        isSuccess: true,
+        title: '',
+        message: ''
+    });
 
     // Form Data State
     const [formData, setFormData] = useState({
@@ -30,7 +49,7 @@ export default function RegisterStudentModule() {
         depGivenName: '', depSurname: '', depGender: '', depRelation: '', depEmail: '', depPhone1: '', depPhone2: '', depAddress: '',
         // Photo
         photoPreview: null,
-        photoFile: null // Track the actual File object for backend upload
+        photoFile: null 
     });
 
     useEffect(() => {
@@ -68,17 +87,17 @@ export default function RegisterStudentModule() {
                 setFormData(prev => ({ 
                     ...prev, 
                     photoPreview: reader.result,
-                    photoFile: file // Save the file for API upload
+                    photoFile: file 
                 }));
             };
             reader.readAsDataURL(file);
         }
     };
 
-   // --- SUBMIT REGISTRATION LOGIC ---
+    // --- SUBMIT REGISTRATION LOGIC ---
     const submitRegistration = async () => {
         setIsSubmitting(true);
-        setErrors({}); // Clear old errors
+        setErrors({}); 
         
         const payload = new FormData();
         Object.keys(formData).forEach(key => {
@@ -94,25 +113,44 @@ export default function RegisterStudentModule() {
             });
             
             if (response.data.success) {
-                alert(response.data.message);
-                navigate('/students');
+                // Trigger Green Success Modal
+                setModalState({
+                    isOpen: true,
+                    isSuccess: true,
+                    title: 'Registration Successful',
+                    message: response.data.message || 'The student record has been saved successfully.'
+                });
             }
         } catch (error) {
-            // Check if Laravel returned a 422 Validation Error
             if (error.response && error.response.status === 422) {
                 setErrors(error.response.data.errors);
-                setPreviewMode(false); // Kick them back to edit mode to see the errors
-                // Optional: Scroll to the top of the page so they see the error box
+                setPreviewMode(false); 
                 window.scrollTo({ top: 0, behavior: 'smooth' }); 
             } else {
                 console.error("Error registering applicant", error);
-                alert("A server error occurred during registration.");
+                // Trigger Red Failure Modal
+                setModalState({
+                    isOpen: true,
+                    isSuccess: false,
+                    title: 'Registration Failed',
+                    message: 'A critical server-side error occurred during database persistence.'
+                });
             }
         }
         setIsSubmitting(false);
     };
 
-    // Helper functions for Preview Screen
+    // Modal Close Action
+    const handleCloseModal = () => {
+        const wasSuccess = modalState.isSuccess;
+        setModalState(prev => ({ ...prev, isOpen: false }));
+        
+        // If registration was good, redirect the user away after they close it
+        if (wasSuccess) {
+            navigate('/students');
+        }
+    };
+
     const getProvinceName = (id) => provincesList.find(p => p.provinceId == id)?.pro_name || '-';
     const getLlgName = (id) => llgsList.find(l => l.llgIdPk == id)?.llgName || '-';
     const getWardName = (id) => wardsList.find(w => w.wardIdPk == id)?.wardName || '-';
@@ -151,7 +189,6 @@ export default function RegisterStudentModule() {
                 
                 <div className="card-body p-4" style={{ backgroundColor: '#faf9f7' }}>
 
-                    {/* Render Global Validation Errors Component */}
                     <ValidationErrors errors={errors} />
                     
                     {!previewMode && (
@@ -171,7 +208,6 @@ export default function RegisterStudentModule() {
                     )}
 
                     <div className="bg-white p-4 rounded shadow-sm border">
-                        
                         {previewMode ? (
                             <div className="row" style={{ fontSize: '0.9rem' }}>
                                 <div className="col-md-9">
@@ -316,7 +352,6 @@ export default function RegisterStudentModule() {
                         )}
                     </div>
 
-                    {/* Bottom Action Buttons */}
                     <div className="d-flex justify-content-end mt-4">
                         {!previewMode ? (
                             <MDBBtn color="success" className="shadow-0 fw-bold" onClick={() => setPreviewMode(true)}>
@@ -337,9 +372,41 @@ export default function RegisterStudentModule() {
                             </>
                         )}
                     </div>
-
                 </div>
             </div>
+
+            {/* --- NEW DYNAMIC RESPONSE MODAL BOX --- */}
+            <MDBModal open={modalState.isOpen} onClose={() => {}} tabIndex="-1">
+                <MDBModalDialog centered>
+                    <MDBModalContent className="border-0 shadow">
+                        <MDBModalHeader className={`${modalState.isSuccess ? 'bg-success' : 'bg-danger'} text-white border-0 py-3`}>
+                            <MDBModalTitle className="fw-bold fs-6 d-flex align-items-center">
+                                <MDBIcon 
+                                    fas 
+                                    icon={modalState.isSuccess ? "check-circle" : "times-circle"} 
+                                    className="me-2 fs-4" 
+                                />
+                                {modalState.title}
+                            </MDBModalTitle>
+                        </MDBModalHeader>
+                        <MDBModalBody className="p-4 text-center">
+                            <div className="my-2" style={{ fontSize: '1rem', color: '#4f4f4f' }}>
+                                {modalState.message}
+                            </div>
+                        </MDBModalBody>
+                        <MDBModalFooter className="border-0 pt-0 pb-3 justify-content-center">
+                            <MDBBtn 
+                                color={modalState.isSuccess ? "success" : "danger"} 
+                                className="shadow-0 px-4 fw-bold"
+                                onClick={handleCloseModal}
+                            >
+                                Continue
+                            </MDBBtn>
+                        </MDBModalFooter>
+                    </MDBModalContent>
+                </MDBModalDialog>
+            </MDBModal>
+
         </DashboardLayout>
     );
 }

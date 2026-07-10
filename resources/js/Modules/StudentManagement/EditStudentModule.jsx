@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { MDBBtn, MDBIcon, MDBCheckbox } from 'mdb-react-ui-kit';
+import { 
+    MDBBtn, 
+    MDBIcon, 
+    MDBCheckbox,
+    MDBModal,
+    MDBModalDialog,
+    MDBModalContent,
+    MDBModalHeader,
+    MDBModalTitle,
+    MDBModalBody,
+    MDBModalFooter
+} from 'mdb-react-ui-kit';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../Layouts/DashboardLayout.jsx';
@@ -7,18 +18,31 @@ import ValidationErrors from '../../Components/ValidationErrors.jsx';
 
 export default function EditStudentModule() {
     const navigate = useNavigate();
-    const { id } = useParams(); // Get the ID from the URL
+    const { id } = useParams();
 
-    const [activeTab, setActiveTab] = useState('personal');
+    // UI & Validation States
+    const [activeTab, setActiveTab] = useState('location');
     const [previewMode, setPreviewMode] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
     const [isLoadingData, setIsLoadingData] = useState(true);
+    
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+    // Dropdown Data Repositories
     const [provincesList, setProvincesList] = useState([]);
     const [llgsList, setLlgsList] = useState([]);
     const [wardsList, setWardsList] = useState([]);
 
+    // Modal Notification States
+    const [modalState, setModalState] = useState({
+        isOpen: false,
+        isSuccess: true,
+        title: '',
+        message: ''
+    });
+
+    // Unified Form State Repository
     const [formData, setFormData] = useState({
         givenName: '', middleName: '', surname: '', gender: '', dob: '', phone1: '', phone2: '', email: '', lastSchool: '',
         isOtherProvince: false, llg: '', ward: '', province: '', postalAddress: '', secondaryAddress: '',
@@ -26,7 +50,6 @@ export default function EditStudentModule() {
         photoPreview: null, photoFile: null
     });
 
-    // 1. Fetch dropdown lists and the existing student's data
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -40,40 +63,78 @@ export default function EditStudentModule() {
                 setLlgsList(llgRes.data);
                 
                 const data = studentRes.data;
-                const isOther = !!data.provinceidfk;
+                const source = data.person ? data.person : data;
+                
+                const rawWardId = source.wardidfk || source.wardIdFk || '';
+                const rawProvinceId = source.provinceidfk || source.provinceIdFk || '';
+                const isOther = Boolean(rawProvinceId);
+
+                let discoveredLlgId = '';
+                let initialWards = [];
+
+                if (rawWardId && !isOther) {
+                    if (source.ward && (source.ward.llgIdFk || source.ward.llgidfk)) {
+                        discoveredLlgId = String(source.ward.llgIdFk || source.ward.llgidfk);
+                    } 
+                    
+                    if (!discoveredLlgId && llgRes.data && llgRes.data.length > 0) {
+                        for (const llg of llgRes.data) {
+                            try {
+                                const wRes = await axios.get(`/api/wards/${llg.llgIdPk}`);
+                                const wData = wRes.data;
+                                if (wData.some(w => String(w.wardIdPk) === String(rawWardId))) {
+                                    discoveredLlgId = String(llg.llgIdPk);
+                                    initialWards = wData;
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn(`Scan bypassed for LLG ${llg.llgIdPk}`);
+                            }
+                        }
+                    }
+
+                    if (discoveredLlgId && initialWards.length === 0) {
+                        try {
+                            const wRes = await axios.get(`/api/wards/${discoveredLlgId}`);
+                            initialWards = wRes.data;
+                        } catch (e) {}
+                    }
+                }
+
+                setWardsList(initialWards);
 
                 setFormData({
-                    givenName: data.givenName || '',
-                    middleName: data.middleName || '',
-                    surname: data.surName || '',
-                    gender: data.gender || '',
-                    dob: data.dob || '',
-                    phone1: data.phone1 || '',
-                    phone2: data.phone2 || '',
-                    email: data.email || '',
-                    lastSchool: data.lastschoolattended || '',
+                    givenName: source.givenName || '',
+                    middleName: source.middleName || '',
+                    surname: source.surName || source.surname || '',
+                    gender: source.gender || '',
+                    dob: source.dob || '',
+                    phone1: source.phone1 || '',
+                    phone2: source.phone2 || '',
+                    email: source.email || '',
+                    lastSchool: source.lastschoolattended || source.lastSchool || '',
                     isOtherProvince: isOther,
-                    province: data.provinceidfk || '',
-                    ward: data.wardidfk || '',
-                    llg: '', // Will be derived if ward exists
-                    postalAddress: data.postalAddress || '',
-                    secondaryAddress: data.secondaryresidentaladdressintown || '',
-                    depGivenName: data.givenName_dependent || '',
-                    depSurname: data.surName_dependent || '',
-                    depGender: data.gender_dependent || '',
-                    depRelation: data.addrelationshiptostudent || '',
-                    depEmail: data.email_dependent || '',
-                    depPhone1: data.phone1_dependent || '',
-                    depPhone2: data.phone2_dependent || '',
-                    depAddress: data.guardianresidentaladdress || '',
-                    photoPreview: data.personimage ? `/storage/student_images/${data.personimage}` : null,
+                    province: isOther ? String(rawProvinceId) : '',
+                    llg: discoveredLlgId,           
+                    ward: rawWardId && !isOther ? String(rawWardId) : '',    
+                    postalAddress: source.postalAddress || '',
+                    secondaryAddress: source.secondaryresidentaladdressintown || source.secondaryAddress || '',
+                    depGivenName: source.givenName_dependent || '',
+                    depSurname: source.surName_dependent || '',
+                    depGender: source.gender_dependent || '',
+                    depRelation: source.addrelationshiptostudent || '',
+                    depEmail: source.email_dependent || '',
+                    depPhone1: source.phone1_dependent || '',
+                    depPhone2: source.phone2_dependent || '',
+                    depAddress: source.guardianresidentaladdress || '',
+                    photoPreview: source.personimage ? `/storage/student_images/${source.personimage}` : null,
                     photoFile: null
                 });
 
-                // If they have a ward, we need to fetch the wards for their LLG. 
-                // Note: In a real app, you might join the LLG ID in the backend show() method to make this easier.
+                setIsDataLoaded(true);
+
             } catch (err) {
-                console.error("Error fetching data:", err);
+                console.error("Error setting up data models:", err);
             } finally {
                 setIsLoadingData(false);
             }
@@ -82,10 +143,14 @@ export default function EditStudentModule() {
     }, [id]);
 
     useEffect(() => {
-        if (formData.llg) {
-            axios.get(`/api/wards/${formData.llg}`).then(res => setWardsList(res.data)).catch(err => console.error(err));
-        } else {
-            setWardsList([]); 
+        if (isDataLoaded && !isLoadingData) {
+            if (formData.llg) {
+                axios.get(`/api/wards/${formData.llg}`)
+                    .then(res => setWardsList(res.data))
+                    .catch(err => console.error(err));
+            } else {
+                setWardsList([]);
+            }
         }
     }, [formData.llg]);
 
@@ -99,6 +164,11 @@ export default function EditStudentModule() {
             }
             return newData;
         });
+        
+        // Clear specific errors dynamically as the user types/selects
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
     };
 
     const handlePhotoChange = (e) => {
@@ -114,8 +184,35 @@ export default function EditStudentModule() {
 
     const submitUpdate = async () => {
         setIsSubmitting(true);
-        setErrors({}); 
+        setErrors({});
         
+        // --- CUSTOM FRONTEND VALIDATION ---
+        let validationErrors = {};
+        
+        if (formData.isOtherProvince) {
+            if (!formData.province) {
+                validationErrors.province = "Province selection is required when 'Other Province' is checked.";
+            }
+        } else {
+            if (!formData.llg) {
+                validationErrors.llg = "LLG selection is required.";
+            }
+            if (!formData.ward) {
+                validationErrors.ward = "Ward selection is required.";
+            }
+        }
+
+        // Halt submission if frontend validation fails
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            setIsSubmitting(false);
+            setPreviewMode(false);
+            setActiveTab('location'); // Force user to the tab containing the errors
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        // -----------------------------------
+
         const payload = new FormData();
         Object.keys(formData).forEach(key => {
             if (key !== 'photoPreview' && key !== 'photoFile') {
@@ -130,25 +227,42 @@ export default function EditStudentModule() {
             });
             
             if (response.data.success) {
-                alert(response.data.message);
-                navigate('/students'); 
+                setModalState({
+                    isOpen: true,
+                    isSuccess: true,
+                    title: 'Modifications Saved',
+                    message: response.data.message || 'The profile updates have been successfully written to the database entries.'
+                });
             }
         } catch (error) {
             if (error.response && error.response.status === 422) {
                 setErrors(error.response.data.errors);
-                setPreviewMode(false); 
-                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                setPreviewMode(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
                 console.error("Error updating applicant", error);
-                alert("A server error occurred during update.");
+                setModalState({
+                    isOpen: true,
+                    isSuccess: false,
+                    title: 'Update Operation Failed',
+                    message: 'A communication loop interruption occurred while processing records transaction updates.'
+                });
             }
         }
         setIsSubmitting(false);
     };
 
-    const getProvinceName = (id) => provincesList.find(p => p.provinceId == id)?.pro_name || '-';
-    const getLlgName = (id) => llgsList.find(l => l.llgIdPk == id)?.llgName || '-';
-    const getWardName = (id) => wardsList.find(w => w.wardIdPk == id)?.wardName || '-';
+    const handleCloseModal = () => {
+        const wasSuccess = modalState.isSuccess;
+        setModalState(prev => ({ ...prev, isOpen: false }));
+        if (wasSuccess) {
+            navigate('/students');
+        }
+    };
+
+    const getProvinceName = (id) => provincesList.find(p => String(p.provinceId) === String(id))?.pro_name || '-';
+    const getLlgName = (id) => llgsList.find(l => String(l.llgIdPk) === String(id))?.llgName || '-';
+    const getWardName = (id) => wardsList.find(w => String(w.wardIdPk) === String(id))?.wardName || '-';
 
     const TabLink = ({ tabId, label }) => {
         const isActive = activeTab === tabId;
@@ -169,7 +283,7 @@ export default function EditStudentModule() {
 
     return (
         <DashboardLayout 
-            pageTitle="MIRAS Edit Applicant" 
+            pageTitle="MIRAS Edit Applicant"
             breadcrumbs={[{ label: "Home", url: "/" }, { label: "Students Management", url: "/students" }, "Edit"]}
         >
             <div className="mb-2">
@@ -208,7 +322,6 @@ export default function EditStudentModule() {
                         {previewMode ? (
                             <div className="row" style={{ fontSize: '0.9rem' }}>
                                 <div className="col-md-9">
-                                    {/* Same Preview markup as Register Student */}
                                     <h6 className="fw-bold text-primary border-bottom pb-2">Personal Information</h6>
                                     <div className="row mb-3">
                                         <div className="col-4"><span className="text-muted">Full Name:</span><br/>{formData.givenName} {formData.middleName} {formData.surname}</div>
@@ -246,7 +359,6 @@ export default function EditStudentModule() {
                             </div>
                         ) : (
                             <>
-                                {/* Same Form markup as Register Student */}
                                 {activeTab === 'personal' && (
                                     <div className="row g-3">
                                         <div className="col-md-4"><input type="text" className="form-control" name="givenName" value={formData.givenName} onChange={handleChange} placeholder="Enter Given Name" /></div>
@@ -269,9 +381,30 @@ export default function EditStudentModule() {
                                     <div className="row g-3">
                                         <div className="col-md-4 d-flex align-items-center"><MDBCheckbox name="isOtherProvince" id="otherProvince" label="Other Province" checked={formData.isOtherProvince} onChange={handleChange} /></div>
                                         {!formData.isOtherProvince ? (
-                                            <><div className="col-md-4"><select className="form-select text-muted" name="llg" value={formData.llg} onChange={handleChange}><option value="">Select LLG</option>{llgsList.map(item => (<option key={item.llgIdPk} value={item.llgIdPk}>{item.llgName}</option>))}</select></div><div className="col-md-4"><select className="form-select text-muted" name="ward" value={formData.ward} onChange={handleChange} disabled={!formData.llg}><option value="">Select Ward</option>{wardsList.map(item => (<option key={item.wardIdPk} value={item.wardIdPk}>{item.wardName}</option>))}</select></div></>
+                                            <>
+                                                <div className="col-md-4">
+                                                    <select className={`form-select text-muted ${errors.llg ? 'is-invalid' : ''}`} name="llg" value={formData.llg || ''} onChange={handleChange}>
+                                                        <option value="">Select LLG</option>
+                                                        {llgsList.map(item => (<option key={item.llgIdPk} value={String(item.llgIdPk)}>{item.llgName}</option>))}
+                                                    </select>
+                                                    {errors.llg && <div className="invalid-feedback">{errors.llg}</div>}
+                                                </div>
+                                                <div className="col-md-4">
+                                                    <select className={`form-select text-muted ${errors.ward ? 'is-invalid' : ''}`} name="ward" value={formData.ward || ''} onChange={handleChange} disabled={!formData.llg}>
+                                                        <option value="">Select Ward</option>
+                                                        {wardsList.map(item => (<option key={item.wardIdPk} value={String(item.wardIdPk)}>{item.wardName}</option>))}
+                                                    </select>
+                                                    {errors.ward && <div className="invalid-feedback">{errors.ward}</div>}
+                                                </div>
+                                            </>
                                         ) : (
-                                            <div className="col-md-8"><select className="form-select text-muted" name="province" value={formData.province} onChange={handleChange}><option value="">Select Province</option>{provincesList.map(item => (<option key={item.provinceId} value={item.provinceId}>{item.pro_name}</option>))}</select></div>
+                                            <div className="col-md-8">
+                                                <select className={`form-select text-muted ${errors.province ? 'is-invalid' : ''}`} name="province" value={formData.province || ''} onChange={handleChange}>
+                                                    <option value="">Select Province</option>
+                                                    {provincesList.map(item => (<option key={item.provinceId} value={String(item.provinceId)}>{item.pro_name}</option>))}
+                                                </select>
+                                                {errors.province && <div className="invalid-feedback">{errors.province}</div>}
+                                            </div>
                                         )}
                                         <div className="col-md-6"><input type="text" className="form-control" name="postalAddress" value={formData.postalAddress} onChange={handleChange} placeholder="Enter Postal Address" /></div>
                                         <div className="col-md-6"><input type="text" className="form-control" name="secondaryAddress" value={formData.secondaryAddress} onChange={handleChange} placeholder="Enter Secondary Residential Address in town" /></div>
@@ -323,6 +456,39 @@ export default function EditStudentModule() {
                     </div>
                 </div>
             </div>
+
+            {/* --- DYNAMIC SEMANTIC RESPONSE MODAL BOX --- */}
+            <MDBModal open={modalState.isOpen} onClose={() => {}} tabIndex="-1">
+                <MDBModalDialog centered>
+                    <MDBModalContent className="border-0 shadow">
+                        <MDBModalHeader className={`${modalState.isSuccess ? 'bg-success' : 'bg-danger'} text-white border-0 py-3`}>
+                            <MDBModalTitle className="fw-bold fs-6 d-flex align-items-center">
+                                <MDBIcon 
+                                    fas 
+                                    icon={modalState.isSuccess ? "check-circle" : "times-circle"} 
+                                    className="me-2 fs-4" 
+                                />
+                                {modalState.title}
+                            </MDBModalTitle>
+                        </MDBModalHeader>
+                        <MDBModalBody className="p-4 text-center">
+                            <div className="my-2" style={{ fontSize: '1rem', color: '#4f4f4f' }}>
+                                {modalState.message}
+                            </div>
+                        </MDBModalBody>
+                        <MDBModalFooter className="border-0 pt-0 pb-3 justify-content-center">
+                            <MDBBtn 
+                                color={modalState.isSuccess ? "success" : "danger"} 
+                                className="shadow-0 px-4 fw-bold"
+                                onClick={handleCloseModal}
+                            >
+                                Continue
+                            </MDBBtn>
+                        </MDBModalFooter>
+                    </MDBModalContent>
+                </MDBModalDialog>
+            </MDBModal>
+
         </DashboardLayout>
     );
 }
